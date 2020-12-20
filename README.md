@@ -1,6 +1,5 @@
 # PIANO-CHORDS-GENERATOR
-# PIANO-CHORDS-GENERATOR
-# PIANO-CHORD-GENERATOR
+
 > It is a program to generate 72 varities of piano chords with audio output
 
 
