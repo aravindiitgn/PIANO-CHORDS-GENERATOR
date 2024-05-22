@@ -1,0 +1,5 @@
+pydub==0.25.1
+
+
+
+You have to install ffmpeg and ffplayer also.

@@ -9,6 +9,9 @@
          * ffplayer
          * homebrew (if necessary)
 
+> Do pip install -r requirements.txt
+> Also do brew install ffmpeg
+
 
 
 >Run the 'main.py' file
