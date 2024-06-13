@@ -1,0 +1,80 @@
+import cv2
+import mediapipe as mp
+import pyrealsense2 as rs
+import numpy as np
+
+# Initialize Mediapipe Hand module
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+
+# Initialize RealSense pipeline
+pipeline = rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+profile = pipeline.start(config)
+
+# Align depth frame to color frame
+align = rs.align(rs.stream.color)
+
+# Helper function to get depth at specific coordinates
+def get_depth_at_coordinate(depth_frame, x, y):
+    depth_intrin = depth_frame.profile.as_video_stream_profile().intrinsics
+    depth = depth_frame.as_depth_frame().get_distance(x, y)
+    return depth
+
+# OpenCV window
+cv2.namedWindow('Hand Tracking', cv2.WINDOW_AUTOSIZE)
+
+# Distance threshold in meters
+distance_threshold = 0.5
+
+# Start capturing frames
+try:
+    with mp_hands.Hands(static_image_mode=False, max_num_hands=2, min_detection_confidence=0.7) as hands:
+        while True:
+            # Wait for a coherent pair of frames: depth and color
+            frames = pipeline.wait_for_frames()
+            aligned_frames = align.process(frames)
+            depth_frame = aligned_frames.get_depth_frame()
+            color_frame = aligned_frames.get_color_frame()
+            if not depth_frame or not color_frame:
+                continue
+
+            # Convert image to RGB
+            color_image = np.asanyarray(color_frame.get_data())
+            rgb_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+
+            # Process the image and find hands
+            results = hands.process(rgb_image)
+
+            # Draw hand annotations on the image
+            if results.multi_hand_landmarks:
+                for hand_landmarks in results.multi_hand_landmarks:
+                    mp_drawing.draw_landmarks(color_image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                    for idx, landmark in enumerate(hand_landmarks.landmark):
+                        h, w, _ = color_image.shape
+                        cx, cy = int(landmark.x * w), int(landmark.y * h)
+
+                        # Get depth at the landmark coordinates
+                        depth = get_depth_at_coordinate(depth_frame, cx, cy)
+
+                        # Display the depth on the image
+                        cv2.putText(color_image, f'{depth:.2f}m', (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+
+                        # Check if any depth is greater than the threshold
+                        if depth > distance_threshold:
+                            print("picking")
+                            # Optional: Draw a circle around the point that exceeds the threshold
+                            cv2.circle(color_image, (cx, cy), 5, (0, 0, 255), cv2.FILLED)
+
+            # Display the resulting frame
+            cv2.imshow('Hand Tracking', color_image)
+
+            # Break the loop with 'q'
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+finally:
+    # Stop streaming
+    pipeline.stop()
+    cv2.destroyAllWindows()
