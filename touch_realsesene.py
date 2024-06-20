@@ -54,21 +54,27 @@ def thermal_mitigation(pipeline, timeout=10000):
 print("Capturing initial background scene...")
 background_frames = [thermal_mitigation(pipeline) for _ in range(20)]
 background = super_resolve(background_frames)
+print("Initial background scene captured.")
 
 try:
     while True:
         # Get frames from RealSense
         live_frames = [thermal_mitigation(pipeline) for _ in range(5)]
         live_scene = super_resolve(live_frames)
+        
+        print("Live scene captured.")
 
         # Background subtraction
         subtracted_scene = background_subtraction(background, live_scene)
+        print("Background subtraction done.")
 
         # Geometry subtraction
         geometry_subtracted_scene = geometry_subtraction(subtracted_scene, background)
+        print("Geometry subtraction done.")
 
         # Frequency-based de-noising
         denoised_scene = denoise_wavelet(geometry_subtracted_scene, multichannel=False)
+        print("Denoising done.")
 
         # Convert denoised image to RGB for MediaPipe processing
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(denoised_scene, alpha=0.03), cv2.COLORMAP_JET)
@@ -85,6 +91,7 @@ try:
                     click_x = int(index_finger_tip.x * w)
                     click_y = int(index_finger_tip.y * h)
                     cv2.circle(depth_colormap, (click_x, click_y), 10, (0, 255, 0), -1)
+            print("Hand detected and click processed.")
 
         # Show the image
         cv2.imshow('Depth', depth_colormap)
@@ -94,3 +101,4 @@ finally:
     pipeline.stop()
     cv2.destroyAllWindows()
     hands.close()
+    print("Pipeline stopped and resources released.")
